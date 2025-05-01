@@ -10,6 +10,7 @@
 		<Description>MiniTransit is a lightweight, extensible .NET messaging library. RabbitMQ MiniTransit implementation.</Description>
 		<PackageProjectUrl>https://github.com/matt-bentley/MiniTransit</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/matt-bentley/MiniTransit</RepositoryUrl>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 	</PropertyGroup>
 
 	<ItemGroup>
