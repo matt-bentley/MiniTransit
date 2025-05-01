@@ -52,7 +52,7 @@ namespace MiniTransit.Subscriptions
                 try
                 {
                     var consumer = scope.ServiceProvider.GetRequiredService<TConsumer>();                
-                    var context = new ConsumeContext<TMessage>(messageEnvelope.Message, messageEnvelope.SubscriptionContext!, _publisher);
+                    var context = new ConsumeContext<TMessage>(messageEnvelope.Message!, messageEnvelope.SubscriptionContext!, _publisher);
                     await _consumerHandler.Invoke(consumer, context);
                 }
                 catch (Exception ex)
