@@ -130,36 +130,93 @@ builder.UseMessageSerializer<MyCustomSerializer>();
 
 ---
 
-## Transport Settings
+## Transports
+
+The following transports are currently supported:
+
+### In-Memory Transport
+
+An in-memory implementation using .NET Channels for asynchronous messaging and scheduling.
+
+### RabbitMQ Transport
+
+The RabbitMQ transport in MiniTransit provides robust messaging capabilities using RabbitMQ's topic exchanges and queues. It supports advanced features for message processing, retry policies, and scheduling.
+
+#### Features
+
+- **Durable Queues**: Option to create queues as durable for persistence across RabbitMQ restarts.
+- **Dead Letter Queues**: Automatically route failed messages to a Dead Letter Queue for further inspection.
+- **Retry Policies**: Configurable retry mechanism with support for retry counts and delayed retries.
+- **Message Scheduling**: Leverages the `rabbitmq_delayed_message_exchange` plugin for delayed message delivery.
+- **TLS Support**: Secure communication with RabbitMQ using TLS.
+- **Prefetch Count**: Control the number of messages fetched from RabbitMQ in one go.
+- **Auto Acknowledgment**: Automatically acknowledge messages upon receipt or process them manually.
+- **Customizable Time-to-Live**: Set a default expiration time for messages.
+
+#### How It Works
+
+1. **Message Routing**: Messages are routed using RabbitMQ's topic exchanges. The routing key is derived from the message type name, ensuring that messages are delivered to all subscribed consumers.
+2. **Queue Naming**: Unique queue names are generated based on the message type and consumer type, ensuring isolation between different consumers.
+3. **Error Handling**: Failed messages are retried based on the configured retry policy. If retries are exhausted, messages can be sent to a Dead Letter Queue (if enabled).
+4. **Scheduling**: Messages can be scheduled for future delivery using the RabbitMQ delayed message exchange plugin.
+
+#### Configuration Example
+
+```csharp
+services.AddMiniTransit((settings, builder) =>
+{
+    builder.UseRabbitMQ(options =>
+    {
+        options.HostName = "localhost";
+        options.Port = 5672;
+        options.UserName = "guest";
+        options.Password = "guest";
+        options.DeadLetterOnError = true;
+        options.DefaultMessageTimeToLiveDays = 365;
+        // ...other settings
+    });
+});
+```
+
+### Azure Service Bus Transport
+
+The Azure Service Bus transport in MiniTransit provides robust messaging capabilities using Azure's fully managed message broker. It supports advanced features for message processing, retry policies, and subscription management.
+
+#### Features
+
+- **Automatic Subscription Creation**: Automatically create topics and subscriptions if they do not exist.
+- **Dead Letter Queues**: Route failed messages to a Dead Letter Queue for further inspection.
+- **Retry Policies**: Configurable retry mechanism with support for retry counts and delayed retries.
+- **Message Scheduling**: Schedule messages for future delivery.
+- **Subject Filtering**: Filter messages to subscriptions based on the message type.
+- **Lock Management**: Configurable lock duration and automatic lock renewal.
+- **Concurrent Processing**: Control the number of concurrent message handlers.
+
+#### How It Works
+
+1. **Message Routing**: Messages are routed to topics and subscriptions. Subject filtering can be enabled to route messages based on their type.
+2. **Subscription Management**: Subscriptions can be created automatically if they do not exist, with configurable settings such as message TTL, lock duration, and max delivery count. The provided connection string must have the 'Manage' claim to allow subscriptions to be managed dynamically.
+3. **Error Handling**: Failed messages are retried based on the configured retry policy. If retries are exhausted, messages can be sent to a Dead Letter Queue (if enabled).
+4. **Scheduling**: Messages can be scheduled for future delivery using Azure Service Bus's built-in scheduling capabilities.
+
+#### Configuration Example
+
+```csharp
+services.AddMiniTransit((settings, builder) =>
+{
+    builder.UseAzureServiceBus(options =>
+    {
+        options.ConnectionString = "<your-connection-string>";
+        options.CreateSubscriptions = true;
+        options.MaxDeliveryCount = 3;
+        // ...other settings
+    });
+});
+```
+
+### Transport Settings
 
 Each transport has its own settings class for advanced configuration. See the `Settings` folder in each transport project for details.
-
-### RabbitMQ Example
-
-```csharp
-builder.UseRabbitMQ(options =>
-{
-    options.HostName = "localhost";
-    options.Port = 5672;
-    options.UserName = "guest";
-    options.Password = "guest";
-    options.DeadLetterOnError = true;
-    options.DefaultMessageTimeToLiveDays = 365;
-    // ...other settings
-});
-```
-
-### Azure Service Bus Example
-
-```csharp
-builder.UseAzureServiceBus(options =>
-{
-    options.ConnectionString = "<your-connection-string>";
-    options.CreateSubscriptions = true;
-    options.MaxDeliveryCount = 3;
-    // ...other settings
-});
-```
 
 ---
 
