@@ -13,6 +13,7 @@ namespace MiniTransit
         private readonly ILogger<MiniTransitBus> _logger;
         private readonly IOptions<MiniTransitSettings> _options;
         private readonly IMessageSerializer _serializer;
+        private readonly CancellationTokenSource _cts = new();
 
         public MiniTransitBus(IMessageBus messageBus, 
             IServiceProvider serviceProvider,
@@ -24,7 +25,7 @@ namespace MiniTransit
             _logger = logger;
             _options = options;
             _serializer = serializer;
-            _subscriptionRegistry = new SubscriptionRegistry(serviceProvider, this);
+            _subscriptionRegistry = new SubscriptionRegistry(serviceProvider, this, _cts);
         }
 
         public async Task PublishAsync<TMessage>(TMessage message)
@@ -136,6 +137,7 @@ namespace MiniTransit
         public async Task StopProcessingAsync()
         {
             _logger.LogInformation("Stopping consuming messages");
+            _cts.Cancel();
             await _messageBus.StopProcessingAsync();
         }
 

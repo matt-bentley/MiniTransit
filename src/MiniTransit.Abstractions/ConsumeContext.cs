@@ -6,15 +6,18 @@ namespace MiniTransit
     {
         public ConsumeContext(TMessage message,
             SubscriptionContext subscriptionContext,
-            IPublisher publisher)
+            IPublisher publisher,
+            CancellationToken cancellationToken)
         {
             Message = message;
             SubscriptionContext = subscriptionContext;
             Publisher = publisher;
+            CancellationToken = cancellationToken;
         }
 
         public readonly TMessage Message;
         public readonly SubscriptionContext SubscriptionContext;
         public readonly IPublisher Publisher;
+        public readonly CancellationToken CancellationToken;
     }
 }

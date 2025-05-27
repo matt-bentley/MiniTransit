@@ -61,6 +61,16 @@ services.AddMiniTransit((settings, builder) =>
 
 When using `AddConsumer<T>()`, MiniTransit will automatically subscribe these consumers to the appropriate message types and run them as hosted services.
 
+All consumers from an assembly can be registered automatically as well:
+
+```csharp
+services.AddMiniTransit((settings, builder) =>
+{
+    builder.UseInMemory();
+    builder.AddConsumers(typeof(MyConsumer).Assembly);
+});
+```
+
 #### 3. Define a Consumer
 
 ```csharp

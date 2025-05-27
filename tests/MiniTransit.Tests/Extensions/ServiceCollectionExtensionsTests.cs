@@ -28,7 +28,7 @@ namespace MiniTransit.Tests.Extensions
 
             TestConsumer.OnMessageReceived = msg =>
             {
-                receivedMessages.Add(msg);
+                receivedMessages.Add(msg.Message.Content);
                 return Task.CompletedTask;
             };
 
@@ -64,7 +64,7 @@ namespace MiniTransit.Tests.Extensions
             var receivedMessages = new List<string>();
             TestConsumer.OnMessageReceived = msg =>
             {
-                receivedMessages.Add(msg);
+                receivedMessages.Add(msg.Message.Content);
                 return Task.CompletedTask;
             };
 
@@ -222,29 +222,48 @@ namespace MiniTransit.Tests.Extensions
             Assert.IsType<MockRetryPolicy>(retryPolicy);
         }
 
-        private class TestMessage
+        [Fact]
+        public async Task GivenServiceCollection_WhenAddMiniTransitAndConsumers_ThenRegister()
         {
-            public required string Content { get; set; }
-        }
+            // Arrange
+            var host = Host.CreateDefaultBuilder()
+                    .ConfigureServices(services =>
+                    {
+                        services.AddMiniTransit((settings, builder) =>
+                        {
+                            builder.UseInMemory();
+                            builder.AddConsumers();
+                        });
+                    })
+                    .Build();
 
-        private class TestConsumer : IConsumer<TestMessage>
-        {
-            public static Func<string, Task> OnMessageReceived { get; set; } = _ => Task.CompletedTask;
-
-            public Task ConsumeAsync(ConsumeContext<TestMessage> context)
+            var message = new TestMessage() { Content = "Test Subscription Message" };
+            var receivedMessages = new List<string>();
+            TestConsumer.OnMessageReceived = msg =>
             {
-                return OnMessageReceived.Invoke(context.Message.Content);
-            }
-        }
+                receivedMessages.Add(msg.Message.Content);
+                return Task.CompletedTask;
+            };
 
-        private class TestConsumer2 : IConsumer<TestMessage>
-        {
-            public static Func<string, Task> OnMessageReceived { get; set; } = _ => Task.CompletedTask;
+            // Act
+            await host.StartAsync();
 
-            public Task ConsumeAsync(ConsumeContext<TestMessage> context)
+            try
             {
-                return OnMessageReceived.Invoke(context.Message.Content);
+                var bus = host.Services.GetRequiredService<IBus>();
+
+                await bus.PublishAsync(message);
+
+                await Task.Delay(200);
             }
+            finally
+            {
+                await host.StopAsync();
+            }
+
+            // Assert
+            Assert.Single(receivedMessages);
+            Assert.Equal(message.Content, receivedMessages.First());
         }
     }
 }

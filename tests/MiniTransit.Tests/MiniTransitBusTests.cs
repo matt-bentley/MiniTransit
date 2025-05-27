@@ -55,7 +55,7 @@ public class MiniTransitBusTests
 
         TestConsumer.OnMessageReceived = msg =>
         {
-            receivedMessages.Add(msg);
+            receivedMessages.Add(msg.Message.Content);
             return Task.CompletedTask;
         };
 
@@ -83,7 +83,7 @@ public class MiniTransitBusTests
 
         TestConsumer.OnMessageReceived = msg =>
         {
-            receivedMessages.Add(msg);
+            receivedMessages.Add(msg.Message.Content);
             return Task.CompletedTask;
         };
 
@@ -122,7 +122,7 @@ public class MiniTransitBusTests
 
         TestConsumer.OnMessageReceived = msg =>
         {
-            receivedMessages.Add(msg);
+            receivedMessages.Add(msg.Message.Content);
             return Task.CompletedTask;
         };
 
@@ -153,7 +153,7 @@ public class MiniTransitBusTests
 
         TestConsumer.OnMessageReceived = msg =>
         {
-            receivedMessages.Add(msg);
+            receivedMessages.Add(msg.Message.Content);
             return Task.CompletedTask;
         };
 
@@ -186,7 +186,7 @@ public class MiniTransitBusTests
             {
                 throw new InvalidOperationException("Simulated failure");
             }
-            receivedMessages.Add(msg);
+            receivedMessages.Add(msg.Message.Content);
             return Task.CompletedTask;
         };
 
@@ -267,28 +267,35 @@ public class MiniTransitBusTests
         Assert.Equal(1, retryAttempts2);
     }
 
-    private class TestMessage
+    [Fact]
+    public async Task StopProcessingAsync_ShouldCancelCurrentMessage()
     {
-        public required string Content { get; set; }
-    }
+        // Arrange
+        var message = new TestMessage() { Content = "Test Subscription Message" };
+        var receivedMessages = new List<string>();
 
-    private class TestConsumer : IConsumer<TestMessage>
-    {
-        public static Func<string, Task> OnMessageReceived { get; set; } = _ => Task.CompletedTask;
+        await _miniTransitBus.SubscribeAsync<TestMessage, TestConsumer>("default-topic");
+        var processingTime = TimeSpan.FromSeconds(10);
+        var startTime = DateTime.UtcNow;
 
-        public Task ConsumeAsync(ConsumeContext<TestMessage> context)
+        TestConsumer.OnMessageReceived = async msg =>
         {
-            return OnMessageReceived.Invoke(context.Message.Content);
-        }
-    }
+            receivedMessages.Add(msg.Message.Content);
+            await Task.Delay(processingTime, msg.CancellationToken);
+        };
 
-    private class TestConsumer2 : IConsumer<TestMessage>
-    {
-        public static Func<string, Task> OnMessageReceived { get; set; } = _ => Task.CompletedTask;
+        await _miniTransitBus.StartProcessingAsync();
 
-        public Task ConsumeAsync(ConsumeContext<TestMessage> context)
-        {
-            return OnMessageReceived.Invoke(context.Message.Content);
-        }
+        // Act
+        await _miniTransitBus.PublishAsync(message);
+
+        // Allow some time for the message to be processed
+        await Task.Delay(100);
+        await _miniTransitBus.StopProcessingAsync();
+
+        // Assert
+        Assert.Single(receivedMessages);
+        Assert.Equal(message.Content, receivedMessages.First());
+        Assert.True(DateTime.UtcNow - startTime < processingTime.Add(TimeSpan.FromSeconds(-1)));
     }
 }

@@ -3,6 +3,7 @@ using MiniTransit;
 using MiniTransit.Builders;
 using MiniTransit.Serialization;
 using MiniTransit.Settings;
+using System.Reflection;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -41,6 +42,38 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Adds all consumers from the calling assembly to the MiniTransit configuration.
+        /// </summary>
+        /// <param name="builder">The <see cref="IMiniTransitBuilder"/> to configure.</param>
+        /// <returns>The updated <see cref="IMiniTransitBuilder"/>.</returns>
+        public static IMiniTransitBuilder AddConsumers(this IMiniTransitBuilder builder)
+        {
+            var callingAssembly = Assembly.GetCallingAssembly();
+            return builder.AddConsumers(callingAssembly);
+        }
+
+        /// <summary>
+        /// Adds all consumers from the specified assembly to the MiniTransit configuration.
+        /// </summary>
+        /// <param name="builder">The <see cref="IMiniTransitBuilder"/> to configure.</param>
+        /// <param name="assembly">The assembly to scan for consumers.</param>
+        /// <returns>The updated <see cref="IMiniTransitBuilder"/>.</returns>
+        public static IMiniTransitBuilder AddConsumers(this IMiniTransitBuilder builder, Assembly assembly)
+        {
+            var consumerTypes = assembly.GetTypes()
+                .Where(type => !type.IsAbstract &&
+                    type.GetInterfaces()
+                        .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IConsumer<>)));
+
+            foreach (var consumerType in consumerTypes)
+            {
+                builder.AddConsumer(consumerType);
+            }
+
+            return builder;
+        }
+
+        /// <summary>
         /// Adds a consumer to the MiniTransit configuration and subscribes to messages. An IHostedService is added to consume messages.
         /// </summary>
         /// <typeparam name="TConsumer">The type of the consumer to add. Must implement <see cref="IConsumer{TMessage}"/>.</typeparam>
@@ -50,22 +83,34 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IMiniTransitBuilder AddConsumer<TConsumer>(this IMiniTransitBuilder builder)
             where TConsumer : class, IConsumer
         {
-            var consumerInterface = typeof(TConsumer).GetInterface("IConsumer`1");
+            return builder.AddConsumer(typeof(TConsumer));
+        }
+
+        /// <summary>
+        /// Adds a consumer to the MiniTransit configuration and subscribes to messages. An IHostedService is added to consume messages.
+        /// </summary>
+        /// <param name="builder">The <see cref="IMiniTransitBuilder"/> to configure.</param>
+        /// <param name="consumerType">The type of the consumer to add.  Must implement <see cref="IConsumer{TMessage}"/>.</param>
+        /// <returns>The updated <see cref="IMiniTransitBuilder"/>.</returns>
+        /// <exception cref="InvalidOperationException">Thrown if <typeparamref name="TConsumer"/> does not implement <see cref="IConsumer{TMessage}"/>.</exception>
+        public static IMiniTransitBuilder AddConsumer(this IMiniTransitBuilder builder, Type consumerType)
+        {
+            var consumerInterface = consumerType.GetInterface("IConsumer`1");
             if (consumerInterface == null)
             {
-                throw new InvalidOperationException($"{typeof(TConsumer).Name} must implement IConsumer<TMessage>.");
+                throw new InvalidOperationException($"{consumerType.Name} must implement IConsumer<TMessage>.");
             }
 
             var messageType = consumerInterface.GetGenericArguments()[0];
 
-            builder.Services.TryAddTransient<TConsumer>();
+            builder.Services.TryAddTransient(consumerType);
 
             var addHostedServiceMethod = typeof(ServiceCollectionHostedServiceExtensions)
                 .GetMethods()
                 .First(m => m.Name == "AddHostedService" && m.IsGenericMethod);
 
             var genericMethod = addHostedServiceMethod.MakeGenericMethod(
-                typeof(ConsumerHostedService<,>).MakeGenericType(messageType, typeof(TConsumer))
+                typeof(ConsumerHostedService<,>).MakeGenericType(messageType, consumerType)
             );
 
             genericMethod.Invoke(null, [builder.Services]);

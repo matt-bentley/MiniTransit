@@ -28,7 +28,7 @@ namespace MiniTransit.Tests.Subscriptions
         public void AddSubscription_ShouldAddNewSubscription()
         {
             // Arrange
-            var registry = new SubscriptionRegistry(_serviceProvider, Mock.Of<IPublisher>());
+            var registry = new SubscriptionRegistry(_serviceProvider, Mock.Of<IPublisher>(), new CancellationTokenSource());
             var topic = "test-topic";
             var subscriptionName = "test-subscription";
 
@@ -45,7 +45,7 @@ namespace MiniTransit.Tests.Subscriptions
         public void AddSubscription_ShouldThrowException_WhenDuplicateSubscription()
         {
             // Arrange
-            var registry = new SubscriptionRegistry(_serviceProvider, Mock.Of<IPublisher>());
+            var registry = new SubscriptionRegistry(_serviceProvider, Mock.Of<IPublisher>(), new CancellationTokenSource());
             var topic = "test-topic";
             var subscriptionName = "test-subscription";
             registry.AddSubscription<TestMessage, TestConsumer>(topic, subscriptionName);
@@ -54,16 +54,6 @@ namespace MiniTransit.Tests.Subscriptions
             var exception = Assert.Throws<ArgumentException>(() =>
                 registry.AddSubscription<TestMessage, TestConsumer>(topic, subscriptionName));
             Assert.Contains("already registered", exception.Message);
-        }
-
-        private class TestMessage { }
-
-        private class TestConsumer : IConsumer<TestMessage>
-        {
-            public Task ConsumeAsync(ConsumeContext<TestMessage> context)
-            {
-                throw new NotImplementedException();
-            }
         }
     }
 }

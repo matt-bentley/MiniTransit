@@ -6,13 +6,16 @@ namespace MiniTransit.Subscriptions
         private readonly Dictionary<string, IConsumerSubscription> _subscriptions;
         private readonly IServiceProvider _serviceProvider;
         private readonly IPublisher _publisher;
+        private readonly CancellationTokenSource _cts;
 
         public SubscriptionRegistry(IServiceProvider serviceProvider, 
-            IPublisher publisher)
+            IPublisher publisher,
+            CancellationTokenSource cts)
         {
             _subscriptions = [];
             _serviceProvider = serviceProvider;
             _publisher = publisher;
+            _cts = cts;
         }
 
         public IConsumerSubscription AddSubscription<TMessage, TConsumer>(string topic, string subscriptionName)
@@ -25,7 +28,7 @@ namespace MiniTransit.Subscriptions
                 throw new ArgumentException($"Subscription {subscriptionName} already registered in topic {topic}", nameof(subscriptionName));
             }
 
-            var subscription = new ConsumerSubscription<TMessage, TConsumer>(_serviceProvider, _publisher, topic, subscriptionName);
+            var subscription = new ConsumerSubscription<TMessage, TConsumer>(_serviceProvider, _publisher, topic, subscriptionName, _cts);
             _subscriptions.Add(subscriptionKey, subscription);
             return subscription;
         }

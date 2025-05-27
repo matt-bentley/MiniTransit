@@ -80,7 +80,11 @@ namespace MiniTransit.Tests
             await bus.StartProcessingAsync();
 
             string? got = null;
-            await bus.SubscribeAsync("t", "s", "n", async m => got = Encoding.UTF8.GetString(m));
+            await bus.SubscribeAsync("t", "s", "n", m =>
+            {
+                got = Encoding.UTF8.GetString(m);
+                return Task.CompletedTask;
+            });
 
             await bus.PublishAsync(Encoding.UTF8.GetBytes("hi!"), "t", "s");
             await Task.Delay(100);
@@ -93,7 +97,11 @@ namespace MiniTransit.Tests
             var bus = CreateBus();
 
             int cnt = 0;
-            await bus.SubscribeAsync("t", "s", "n", async m => cnt++);
+            await bus.SubscribeAsync("t", "s", "n", m =>
+            {
+                cnt++;
+                return Task.CompletedTask;
+            });
             await bus.StartProcessingAsync();
 
             await bus.PublishAsync(Encoding.UTF8.GetBytes("1"), "t", "s");

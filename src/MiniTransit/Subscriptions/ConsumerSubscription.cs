@@ -17,11 +17,13 @@ namespace MiniTransit.Subscriptions
         public readonly string Subscription;
         public readonly string MessageType;
         public readonly string ConsumerType;
+        private readonly CancellationTokenSource _cts;
 
         public ConsumerSubscription(IServiceProvider serviceProvider,
             IPublisher publisher,
             string topic,
-            string subscription)
+            string subscription,
+            CancellationTokenSource cts)
         {
             _publisher = publisher;
             Topic = topic;
@@ -34,6 +36,7 @@ namespace MiniTransit.Subscriptions
 
             _serviceProvider = serviceProvider;
             _serializer = serviceProvider.GetRequiredService<IMessageSerializer>();
+            _cts = cts;
         }
 
         public async Task HandleMessageAsync(byte[] message)
@@ -52,7 +55,7 @@ namespace MiniTransit.Subscriptions
                 try
                 {
                     var consumer = scope.ServiceProvider.GetRequiredService<TConsumer>();                
-                    var context = new ConsumeContext<TMessage>(messageEnvelope.Message!, messageEnvelope.SubscriptionContext!, _publisher);
+                    var context = new ConsumeContext<TMessage>(messageEnvelope.Message!, messageEnvelope.SubscriptionContext!, _publisher, _cts.Token);
                     await _consumerHandler.Invoke(consumer, context);
                 }
                 catch (Exception ex)
